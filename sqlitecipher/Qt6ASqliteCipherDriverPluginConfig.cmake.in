@@ -1,0 +1,49 @@
+if(NOT TARGET Qt6::ASqliteCipherDriverPlugin)
+
+	set(_sqlitecipher_file "@SQLITECIPHER_INSTALL_DIR@/$<TARGET_FILE_NAME:sqlitecipher>")
+	message(STATUS "ASqliteCipherDriver file: ${_sqlitecipher_file}")
+
+    # Stay silent if the plugin itself is not installed (any more).
+    if(EXISTS "${_sqlitecipher_file}")
+        if("$<TARGET_PROPERTY:sqlitecipher,TYPE>" STREQUAL "STATIC_LIBRARY")
+			add_library(Qt6::ASqliteCipherDriverPlugin STATIC IMPORTED GLOBAL)
+			set_target_properties(Qt6::ASqliteCipherDriverPlugin PROPERTIES
+                IMPORTED_LOCATION "${_sqlitecipher_file}"
+                IMPORTED_LINK_INTERFACE_LANGUAGES "C;CXX"
+                INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Sql"
+            )
+            # The library registers itself with Qt (it contains its own
+            # Q_IMPORT_PLUGIN), so all of it has to end up in the application.
+            if(APPLE)
+				set_property(TARGET Qt6::ASqliteCipherDriverPlugin PROPERTY
+                    INTERFACE_LINK_OPTIONS "LINKER:-force_load,${_sqlitecipher_file}")
+            else()
+				set_property(TARGET Qt6::ASqliteCipherDriverPlugin PROPERTY
+                    INTERFACE_LINK_OPTIONS
+                        "LINKER:--whole-archive,${_sqlitecipher_file},--no-whole-archive")
+            endif()
+
+            # Qt expects an "init" object library for every static plugin. The
+            # registration code is part of the library above, so this one
+            # just refers to the same file.
+			add_library(Qt6::ASqliteCipherDriverPlugin_init OBJECT IMPORTED GLOBAL)
+			set_target_properties(Qt6::ASqliteCipherDriverPlugin_init PROPERTIES
+                IMPORTED_OBJECTS "${_sqlitecipher_file}"
+            )
+        else()
+			add_library(Qt6::ASqliteCipherDriverPlugin MODULE IMPORTED GLOBAL)
+			set_target_properties(Qt6::ASqliteCipherDriverPlugin PROPERTIES
+                IMPORTED_LOCATION "${_sqlitecipher_file}"
+            )
+        endif()
+
+		set_target_properties(Qt6::ASqliteCipherDriverPlugin PROPERTIES
+            QT_PLUGIN_TYPE "sqldrivers"
+			QT_PLUGIN_CLASS_NAME "ASqliteCipherDriverPlugin"
+            QT_MODULE "Sql"
+            QT_DEFAULT_PLUGIN 1
+        )
+    endif()
+
+    unset(_sqlitecipher_file)
+endif()
